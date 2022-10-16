@@ -13,7 +13,7 @@
     </section>
     <div class="nes-container with-title is-centered">
       <form @submit.prevent="handleSubmit">
-        <fieldset class="fields" :class="{dis: loading}">
+        <fieldset :class="{ dis: loading }" class="fields">
           <div class="nes-field"></div>
           <div class="nes-field">
             <label for="name_field">Name</label>
@@ -84,108 +84,129 @@
           <button
             type="submit"
             class="nes-btn is-primary"
-            :class="{dis: loading}"
+            :class="{ dis: loading }"
           >
-            {{loading ? "Loading.." : "Pay $19.99"}}
+            {{ loading ? "Loading..." : "Pay $19.99" }}
           </button>
         </div>
       </form>
     </div>
-    <!-- <h2>Or...</h2>
+    <h2>Or...</h2>
     <div class="nes-field mt">
       <button type="button" class="nes-btn is-success" @click="redirect">
         Pay $19.99 Page
       </button>
-    </div> -->
-</template>
-
+    </div>
+  </template>
+  
 <script setup>
-import { loadStripe } from '@stripe/stripe-js'
-import { onMounted, ref } from 'vue';
-
-const style = {
-  style: {
-    base: {
-      iconColor: "#000",
-      color: "white",
-      fontWeight: "800",
-      fontFamily: "Press Start 2P",
-      fontSize: "22px",
-      fontSmoothing: "antialiased",
-      ":-webkit-autofill": {
-        color: "#fce883"
-      },
-      "::placeholder": {
-        color: "green",
-      }
-    },
-    invalid: {
-      iconColor: "#FFC7EE",
-      color: "red"
-    }
-  }
-};
-
-let stripe = null;
-let loading = ref(true)
-let elements = null;
-
-onMounted(async () => {
-    const ELEMENT_TYPE = "card"
-    stripe = await loadStripe(import.meta.env.VITE_STRIPE_KEY)
-    elements = stripe.elements()
-    const element = elements.create(ELEMENT_TYPE, style)
-    element.mount("#stripe-element-mount-point")
-    loading.value = false;
-})
-
-const redirect = () => {
-    stripe.redirectToCheckout({
-        successUrl:"http://localhost:5173/success",
-        cancelUrl: "http://localhost:5173",
-        lineItems: [
-            {
-                price: "price_1Ltc7nKKSBZTfMKqEfmWGSC0",
-                quantity: 1
-            }
-        ],
-        mode: "payment"
-    })
-}
-
-const handleSubmit = async (event) => {
-    if (loading.value) return;
-    loading.value = true;
-    const { name, email, address, city, state, zip } = Object.fromEntries(
-        new FormData(event.target)
-    );
-    const billingDetails = {
-        name,
-        email,
-        address: {
-          city,
-          line1: address,
-          state,
-          postal_code: zip
+import { onMounted, ref } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import { loadStripe } from "@stripe/stripe-js";
+  const style = {
+    style: {
+      base: {
+        iconColor: "#000",
+        color: "white",
+        fontWeight: "800",
+        fontFamily: "Press Start 2P",
+        fontSize: "22px",
+        fontSmoothing: "antialiased",
+        ":-webkit-autofill": {
+          color: "#fce883"
+        },
+        "::placeholder": {
+          color: "green"
         }
-    };
+      },
+      invalid: {
+        iconColor: "#FFC7EE",
+        color: "red"
+      }
+    }
+  };
 
-    const cardElement = elements.getElement("card");
 
-    try {
-        const response = await fetch("http://localhost:3001/stripe", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ amount: 1999 })
+    const router = useRouter();
+    let stripe = null;
+    let loading = ref(true);
+    let elements = null;
+    onMounted(async () => {
+        const ELEMENT_TYPE = "card";
+        stripe = await loadStripe(import.meta.env.VITE_STRIPE_KEY);
+        elements = stripe.elements();
+        const element = elements.create(ELEMENT_TYPE, style);
+        element.mount("#stripe-element-mount-point");
+        loading.value = false;
+    });
+
+    async function handleSubmit(event) {
+        if (loading.value) return;
+            loading.value = true;
+
+        const { name, email, address, city, state, zip } = Object.fromEntries(
+          new FormData(event.target)
+        );
+        console.log("here", name, email, address, city, state, zip);
+
+        const billingDetails = {
+          name,
+          email,
+          address: {
+            city,
+            line1: address,
+            state,
+            postal_code: zip
+          }
+        };
+
+        const cardElement = elements.getElement("card");
+
+        try {
+            const response = await fetch("http://localhost:3001/stripe", {
+                method: "POST",
+                headers: {
+                "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ amount: 1999 })
+            });
+            const { secret } = await response.json();
+            console.log("secret", secret);
+
+            const paymentMethodReq = await stripe.createPaymentMethod({
+                type: "card",
+                card: cardElement,
+                billing_details: billingDetails
+            });
+
+            console.log("error?", paymentMethodReq);
+
+            const { error } = await stripe.confirmCardPayment(secret, {
+                payment_method: paymentMethodReq.paymentMethod.id
+            });
+
+            loading.value = false;
+            console.log("error?", error);
+            router.push("/success");
+
+        } catch (error) {
+          console.log("error", error);
+          loading.value = false;
+        }
+      }
+      function redirect() {
+        stripe.redirectToCheckout({
+          successUrl: "http://localhost:3000/success",
+          cancelUrl: "http://localhost:3000",
+          lineItems: [
+            {
+              price: "price_1Ltc7nKKSBZTfMKqEfmWGSC0",
+              quantity: 1
+            }
+          ],
+          mode: "payment"
         });
-        const { secret } = await response.json();
-        console.log("secret", secret);
-    } catch (error) {}
-
-    console.log("hi", event)
-
-}
-
-</script>
+      }
+  </script>
+  <style scoped>
+  </style>
