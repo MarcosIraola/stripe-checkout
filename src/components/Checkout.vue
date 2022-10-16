@@ -108,7 +108,6 @@ onMounted(async () => {
     stripe = await loadStripe(import.meta.env.VITE_STRIPE_KEY)
 })
 
-
 const redirect = () => {
     stripe.redirectToCheckout({
         successUrl:"http://localhost:5173/success",
