@@ -12,8 +12,8 @@
       </div>
     </section>
     <div class="nes-container with-title is-centered">
-      <form>
-        <fieldset class="fields">
+      <form @submit.prevent="handleSubmit">
+        <fieldset class="fields" :class="{dis: loading}">
           <div class="nes-field"></div>
           <div class="nes-field">
             <label for="name_field">Name</label>
@@ -84,28 +84,59 @@
           <button
             type="submit"
             class="nes-btn is-primary"
+            :class="{dis: loading}"
           >
-            "Pay $19.99"
+            {{loading ? "Loading.." : "Pay $19.99"}}
           </button>
         </div>
       </form>
     </div>
-    <h2>Or...</h2>
+    <!-- <h2>Or...</h2>
     <div class="nes-field mt">
       <button type="button" class="nes-btn is-success" @click="redirect">
         Pay $19.99 Page
       </button>
-    </div>
+    </div> -->
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
 import { loadStripe } from '@stripe/stripe-js'
+import { onMounted, ref } from 'vue';
+
+const style = {
+  style: {
+    base: {
+      iconColor: "#000",
+      color: "white",
+      fontWeight: "800",
+      fontFamily: "Press Start 2P",
+      fontSize: "22px",
+      fontSmoothing: "antialiased",
+      ":-webkit-autofill": {
+        color: "#fce883"
+      },
+      "::placeholder": {
+        color: "green",
+      }
+    },
+    invalid: {
+      iconColor: "#FFC7EE",
+      color: "red"
+    }
+  }
+};
 
 let stripe = null;
+let loading = ref(true)
+let elements = null;
 
 onMounted(async () => {
+    const ELEMENT_TYPE = "card"
     stripe = await loadStripe(import.meta.env.VITE_STRIPE_KEY)
+    elements = stripe.elements()
+    const element = elements.create(ELEMENT_TYPE, style)
+    element.mount("#stripe-element-mount-point")
+    loading.value = false;
 })
 
 const redirect = () => {
@@ -120,6 +151,44 @@ const redirect = () => {
         ],
         mode: "payment"
     })
+}
+
+const handleSubmit = async (event) => {
+    if(loading.value) return;
+    loading.value = true;
+
+    const {name, email, address, city, state, zip} = Object.fromEntries(
+        new FormData(event.target)
+    )
+    const billingDetails = {
+        name,
+        email,
+        address: {
+            city,
+            line1: address,
+            state,
+            postal_code: zip
+        }
+    }
+
+    const cardElement = elements.getElement("card");
+
+    try {
+        const response = await fetch("http:localhost:3001/stripe", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({amoint:1999})
+        })
+        const {secret} = await response.json()
+        console.log("secret", secret)
+    } catch (error) {
+        
+    }
+
+    console.log("hi", event)
+
 }
 
 </script>
