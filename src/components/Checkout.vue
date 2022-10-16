@@ -154,38 +154,35 @@ const redirect = () => {
 }
 
 const handleSubmit = async (event) => {
-    if(loading.value) return;
+    if (loading.value) return;
     loading.value = true;
-
-    const {name, email, address, city, state, zip} = Object.fromEntries(
+    const { name, email, address, city, state, zip } = Object.fromEntries(
         new FormData(event.target)
-    )
+    );
     const billingDetails = {
         name,
         email,
         address: {
-            city,
-            line1: address,
-            state,
-            postal_code: zip
+          city,
+          line1: address,
+          state,
+          postal_code: zip
         }
-    }
+    };
 
     const cardElement = elements.getElement("card");
 
     try {
-        const response = await fetch("http:localhost:3001/stripe", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({amoint:1999})
-        })
-        const {secret} = await response.json()
-        console.log("secret", secret)
-    } catch (error) {
-        
-    }
+        const response = await fetch("http://localhost:3001/stripe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ amount: 1999 })
+        });
+        const { secret } = await response.json();
+        console.log("secret", secret);
+    } catch (error) {}
 
     console.log("hi", event)
 
